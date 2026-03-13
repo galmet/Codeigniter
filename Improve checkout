@@ -1,0 +1,80 @@
+<?php
+
+namespace App\Controllers;
+
+class GitSync extends BaseController
+{
+    private string $repoPath;
+    private string $branch;
+
+    public function __construct()
+    {
+        $this->repoPath = '/path/to/your/network/drive/repo'; // Update this
+        $this->branch   = 'your-branch'; // Update this
+    }
+
+    public function sync(): void
+    {
+        log_message('info', 'Git sync started');
+
+        // Step 1: Git fetch to check for remote changes
+        $fetchOutput = $this->runGitCommand('git fetch origin ' . $this->branch . ' 2>&1');
+
+        if ($fetchOutput['status'] !== 0) {
+            log_message('error', 'Git fetch failed: ' . implode("\n", $fetchOutput['output']));
+            return;
+        }
+
+        // Step 2: Check if local is behind remote (any changes to pull)
+        $diffOutput = $this->runGitCommand(
+            'git rev-list HEAD..origin/' . $this->branch . ' --count'
+        );
+
+        $behindCount = (int) trim(implode('', $diffOutput['output']));
+
+        if ($behindCount === 0) {
+            log_message('info', 'No changes detected. Nothing to do.');
+            return;
+        }
+
+        log_message('info', "Found {$behindCount} new commit(s). Proceeding with merge...");
+
+        // Step 3: Git merge (equivalent to the merge part of your pull --no-rebase)
+        $mergeOutput = $this->runGitCommand(
+            'git merge --no-rebase origin/' . $this->branch . ' 2>&1'
+        );
+
+        if ($mergeOutput['status'] !== 0) {
+            log_message('error', 'Git merge failed: ' . implode("\n", $mergeOutput['output']));
+            return;
+        }
+
+        log_message('info', 'Git merge successful. Running LFS pull...');
+
+        // Step 4: Git LFS pull (only runs if merge succeeded)
+        $lfsOutput = $this->runGitCommand(
+            'git lfs pull origin ' . $this->branch . ' 2>&1'
+        );
+
+        if ($lfsOutput['status'] !== 0) {
+            log_message('error', 'Git LFS pull failed: ' . implode("\n", $lfsOutput['output']));
+            return;
+        }
+
+        log_message('info', 'Git LFS pull successful. Sync complete.');
+    }
+
+    private function runGitCommand(string $command): array
+    {
+        $output = [];
+        $status = 0;
+
+        // Run the command from the repo directory
+        exec('cd ' . escapeshellarg($this->repoPath) . ' && ' . $command, $output, $status);
+
+        return [
+            'status' => $status,
+            'output' => $output,
+        ];
+    }
+}
