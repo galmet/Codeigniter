@@ -1,0 +1,51 @@
+<?php
+
+// BEFORE (slow — 1 git process per file):
+// exec('git ls-files -z | xargs -0 -n1 -I{} -- git log -1 --format="%an||%ai||{}" {}', $output);
+
+// AFTER (fast — 2 git processes total, same $output result):
+
+// Step 1: get all tracked files in alphabetical order (mirrors git ls-files)
+exec('git ls-files', $files);
+
+// Step 2: single git log call to get last author/date per file
+exec('git log --pretty=format:"COMMIT||%an||%ai" --name-only', $logLines);
+
+// Step 3: build a map of filepath => "author||date||file" from the log
+$fileMap       = [];
+$currentAuthor = null;
+$currentDate   = null;
+
+foreach ($logLines as $line) {
+    $line = trim($line);
+
+    if ($line === '') {
+        continue;
+    }
+
+    if (str_starts_with($line, 'COMMIT||')) {
+        // e.g. "COMMIT||John Doe||2024-01-15 10:30:00 +0000"
+        $parts         = explode('||', $line, 3);
+        $currentAuthor = $parts[1] ?? null;
+        $currentDate   = $parts[2] ?? null;
+        continue;
+    }
+
+    // First time we see a file = most recent commit (log is newest-first)
+    if ($currentAuthor !== null && !isset($fileMap[$line])) {
+        $fileMap[$line] = "{$currentAuthor}||{$currentDate}||{$line}";
+    }
+}
+
+// Step 4: rebuild $output in the same order as git ls-files (alphabetical)
+// This is what your original xargs command produced
+$output = [];
+foreach ($files as $file) {
+    $file = trim($file);
+    if (isset($fileMap[$file])) {
+        $output[] = $fileMap[$file];
+    }
+}
+
+// $output is now identical to what your original exec() produced —
+// same format, same order, drop-in replacement
