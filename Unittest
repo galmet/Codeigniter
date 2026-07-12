@@ -1,0 +1,80 @@
+<?php
+
+namespace App\Libraries;
+
+use CodeIgniter\Test\CIUnitTestCase;
+use PHPMailer\PHPMailer\PHPMailer;
+use ReflectionMethod;
+
+class EmailServiceTest extends CIUnitTestCase
+{
+    private PHPMailer $mail;
+
+    // This runs before every individual test method
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->mail = new PHPMailer(true);
+    }
+
+    // Clean up memory after tests execute
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        unset($this->mail);
+    }
+
+    /**
+     * Test successful address enqueuing using Reflection
+     */
+    public function testAddOrEnqueueAnAddressSuccessfully()
+    {
+        // 1. Unprotect the method using PHP Reflection
+        $method = new ReflectionMethod($this->mail, 'addOrEnqueueAnAddress');
+        $method->setAccessible(true);
+
+        // 2. Invoke the protected method with valid arguments
+        // Parameters: (string $kind, string $address, string $name = '')
+        $result = $method->invoke($this->mail, 'to', 'user@example.com', 'John Doe');
+
+        // 3. Assertions
+        $this->assertTrue($result, 'The address should be successfully enqueued.');
+        
+        // Verify it actually made it into PHPMailer's internal "to" array
+        $toAddresses = $this->mail->getToAddresses();
+        $this->assertCount(1, $toAddresses);
+        $this->assertEquals('user@example.com', $toAddresses[0][0]);
+    }
+
+    /**
+     * Test that invalid emails fail the enqueuing validation
+     */
+    public function testAddOrEnqueueAnAddressFailsWithInvalidEmail()
+    {
+        $method = new ReflectionMethod($this->mail, 'addOrEnqueueAnAddress');
+        $method->setAccessible(true);
+
+        // PHPMailer returns false on basic syntax failures if exceptions are disabled,
+        // or throws an exception if instantiated with 'true'.
+        $this->expectException(\PHPMailer\PHPMailer\Exception::class);
+
+        $method->invoke($this->mail, 'to', 'invalid-email-no-at-sign', 'Bad Email');
+    }
+
+    /**
+     * Test that duplicate emails are caught and return false
+     */
+    public function testAddOrEnqueueAnAddressPreventsDuplicates()
+    {
+        $method = new ReflectionMethod($this->mail, 'addOrEnqueueAnAddress');
+        $method->setAccessible(true);
+
+        // First addition should pass
+        $firstAttempt = $method->invoke($this->mail, 'cc', 'duplicate@example.com', 'First');
+        $this->assertTrue($firstAttempt);
+
+        // Second addition of the exact same email should return false
+        $secondAttempt = $method->invoke($this->mail, 'cc', 'duplicate@example.com', 'Second');
+        $this->assertFalse($secondAttempt, 'Duplicate addresses should return false.');
+    }
+}
