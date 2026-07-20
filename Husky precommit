@@ -1,12 +1,11 @@
 #!/bin/sh
 
-# Check if triggered by Windows Git or native WSL Git
+# Check if we are being called by Windows Git or a Windows-based IDE wrapper
 if command -v wsl.exe >/dev/null 2>&1 && [ ! -f "/proc/sys/fs/binfmt_misc/WSLInterop" ]; then
-    # Route via Windows execution path into WSL
-    echo "🔍 [Husky] Windows Git detected. Routing into WSL linting..."
-    wsl.exe exec npx lint-staged
+    echo "🔍 [Husky] Windows Git detected. Bridging command into WSL..."
+    # Force WSL to run npm via interactive bash so it inherits your node/npx environment paths
+    wsl.exe bash -ic "npx --no-install lint-staged"
 else
-    # Route via native Linux/WSL execution path
-    echo "🔍 [Husky] WSL Git detected. Running native linting..."
-    npx lint-staged
+    echo "🔍 [Husky] WSL Git detected. Running native Linux lint-staged..."
+    npx --no-install lint-staged
 fi
