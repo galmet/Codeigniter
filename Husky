@@ -1,14 +1,14 @@
 #!/bin/sh
 
-# If this hook is being triggered by Windows Git, bridge it inside WSL instantly
+# If triggered by Windows Git, bridge the path context into WSL cleanly
 if command -v wsl.exe >/dev/null 2>&1 && [ ! -f "/proc/sys/fs/binfmt_misc/WSLInterop" ]; then
     
-    # 1. Convert the current Windows workspace path into a clean WSL Linux path string
+    # 1. Safely transform your Windows directory into a Linux directory string
     WSL_PATH=$(wsl.exe wslpath -u "$PWD")
     
-    # 2. Re-execute lint-staged entirely inside the native Linux shell context
-    wsl.exe bash -ic "cd '$WSL_PATH' && npx --no-install lint-staged"
+    # 2. Execute lint-staged directly via absolute paths without loading profile files
+    wsl.exe bash -c "cd '$WSL_PATH' && ./node_modules/.bin/lint-staged"
     
-    # 3. Exit the parent Windows hook process early so it doesn't try to look for local Windows files
+    # 3. Terminate the wrapper sequence early so Windows Git stops scanning
     exit $?
 fi
