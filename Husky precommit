@@ -1,13 +1,12 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
 
-# Check if we are running from a Windows process executing a WSL workspace
+# Check if triggered by Windows Git or native WSL Git
 if command -v wsl.exe >/dev/null 2>&1 && [ ! -f "/proc/sys/fs/binfmt_misc/WSLInterop" ]; then
-    # Triggered by Windows Git: Route lint-staged inside WSL
-    echo "🔍 [Husky -> Windows Git] Routing linter into WSL..."
+    # Route via Windows execution path into WSL
+    echo "🔍 [Husky] Windows Git detected. Routing into WSL linting..."
     wsl.exe exec npx lint-staged
 else
-    # Triggered by WSL Terminal or WSL-aware PhpStorm Git
-    echo "🔍 [Husky -> WSL Git] Running linter natively..."
+    # Route via native Linux/WSL execution path
+    echo "🔍 [Husky] WSL Git detected. Running native linting..."
     npx lint-staged
 fi
