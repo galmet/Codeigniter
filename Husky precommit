@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo "🔍 [Windows Git] Intercepting hook. Forwarding linting execution to WSL..."
+echo "🔍 [Windows Git] Forwarding execution to WSL environment..."
 
-# Force Windows to run the linter inside WSL via bash, passing the environment paths correctly
-wsl.exe bash -c "cd \$(wslpath '$PWD') && npx --no-install lint-staged"
+# -i forces an interactive login shell, loading all your Node/NVM pathways natively inside WSL
+wsl.exe bash -ic "cd \$(wslpath '$PWD') && ./node_modules/.bin/lint-staged"
