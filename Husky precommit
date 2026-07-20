@@ -1,10 +1,6 @@
 #!/bin/sh
 
-# Detect if we are running from a Windows Git hook execution
-if command -v wsl.exe >/dev/null 2>&1 && [ ! -f "/proc/sys/fs/binfmt_misc/WSLInterop" ]; then
-    echo "🔍 [Husky] Windows Git detected. Executing via local project node_modules..."
-    wsl.exe exec ./node_modules/.bin/lint-staged
-else
-    echo "🔍 [Husky] WSL Git/IDE detected. Executing natively..."
-    ./node_modules/.bin/lint-staged
-fi
+echo "🔍 [Windows Git] Intercepting hook. Forwarding linting execution to WSL..."
+
+# Force Windows to run the linter inside WSL via bash, passing the environment paths correctly
+wsl.exe bash -c "cd \$(wslpath '$PWD') && npx --no-install lint-staged"
