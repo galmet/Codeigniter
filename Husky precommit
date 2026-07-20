@@ -1,6 +1,17 @@
 #!/bin/sh
 
-echo "🔍 [Windows Git] Forwarding execution to WSL environment..."
+echo "🔍 [Windows Git] Running CodeIgniter Auto-Linter inside WSL..."
 
-# -i forces an interactive login shell, loading all your Node/NVM pathways natively inside WSL
-wsl.exe bash -ic "cd \$(wslpath '$PWD') && ./node_modules/.bin/lint-staged"
+# Get a clean list of all staged PHP files that have been added or modified
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.php$')
+
+# If no PHP files are staged, skip the linter entirely and finish the commit
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+
+# Pass the files directly to PHP CS Fixer inside the WSL layer
+wsl.exe bash -c "echo '$STAGED_FILES' | xargs -n 1 ./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --no-progress --no-ansi -q"
+
+# Re-stage any files that the linter automatically modified/fixed
+git add $STAGED_FILES
