@@ -1,17 +1,21 @@
 #!/bin/sh
 
-echo "🔍 [Windows Git] Running CodeIgniter Auto-Linter inside WSL..."
+echo "🔍 [Windows Git] Gathering staged files for CodeIgniter Linter..."
 
-# Get a clean list of all staged PHP files that have been added or modified
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.php$')
+# 1. Save modified PHP files, and instantly convert backward slashes (\) to forward slashes (/)
+git diff --cached --name-only --diff-filter=ACM | grep '\.php$' | sed 's/\\/\//g' > .husky/.staged_phps.txt
 
-# If no PHP files are staged, skip the linter entirely and finish the commit
-if [ -z "$STAGED_FILES" ]; then
+# 2. If the file is empty, skip the linter entirely and finish the commit
+if [ ! -s .husky/.staged_phps.txt ]; then
+    rm -f .husky/.staged_phps.txt
     exit 0
 fi
 
-# Pass the files directly to PHP CS Fixer inside the WSL layer
-wsl.exe bash -c "echo '$STAGED_FILES' | xargs -n 1 ./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --no-progress --no-ansi -q"
+# 3. Instruct WSL to process php-cs-fixer using the normalized Linux paths
+wsl.exe bash -c "cat .husky/.staged_phps.txt | xargs -n 1 ./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --no-progress --no-ansi -q"
 
-# Re-stage any files that the linter automatically modified/fixed
-git add $STAGED_FILES
+# 4. Re-stage any files that the linter automatically modified/fixed
+cat .husky/.staged_phps.txt | xargs git add
+
+# 5. Clean up the temporary file
+rm -f .husky/.staged_phps.txt
